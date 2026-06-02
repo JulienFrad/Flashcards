@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Business Book Flashcards</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Flashcards">
+<meta name="theme-color" content="#0f1117">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root {
+    --bg: #0f1117; --card-bg: #1a1d27; --card-front: #232738; --card-back: #1e3a2f;
+    --accent: #6c8cff; --text: #e8e8ef; --text-dim: #8b8da0; --border: #2d3044;
+    --green: #4ade80; --amber: #fbbf24;
+    --safe-top: env(safe-area-inset-top, 0px); --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; min-height: 100dvh; overflow-x: hidden;
+    padding-top: var(--safe-top); padding-bottom: var(--safe-bottom);
+    -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;
+  }
+  .header { padding:16px 16px 12px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+  .header h1 { font-size:20px; font-weight:700; letter-spacing:-0.5px; }
+  .header h1 span { color:var(--accent); }
+  .header-actions { display:flex; gap:6px; align-items:center; }
+  .stats-bar { display:flex; gap:12px; padding:0 16px 12px; flex-wrap:wrap; align-items:center; }
+  .stat { font-size:13px; color:var(--text-dim); }
+  .stat strong { color:var(--text); font-size:15px; margin-right:3px; }
+  .progress-bar-container { flex:1; min-width:80px; height:6px; background:var(--border); border-radius:3px; overflow:hidden; }
+  .progress-bar { height:100%; background:linear-gradient(90deg,var(--accent),var(--green)); transition:width 0.4s ease; border-radius:3px; }
+  .filters { padding:0 16px 14px; display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  .filter-btn { padding:5px 12px; border-radius:20px; border:1px solid var(--border); background:transparent; color:var(--text-dim); font-size:12px; cursor:pointer; transition:all 0.2s; white-space:nowrap; }
+  .filter-btn:hover { border-color:var(--accent); color:var(--text); }
+  .filter-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .filter-btn.status-filter.active { background:var(--green); border-color:var(--green); color:#111; }
+  .card-area { display:flex; flex-direction:column; align-items:center; padding:6px 16px 16px; }
+  .card-counter { font-size:13px; color:var(--text-dim); margin-bottom:10px; }
+  .card-container { perspective:1200px; width:100%; max-width:640px; height:340px; cursor:pointer; margin-bottom:14px; touch-action:pan-y; }
+  .card-inner { width:100%; height:100%; transition:transform 0.5s cubic-bezier(0.4,0,0.2,1); transform-style:preserve-3d; position:relative; }
+  .card-inner.flipped { transform:rotateY(180deg); }
+  .card-face { position:absolute; width:100%; height:100%; backface-visibility:hidden; -webkit-backface-visibility:hidden; border-radius:16px; padding:24px; display:flex; flex-direction:column; justify-content:center; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  .card-front { background:var(--card-front); border:1px solid var(--border); }
+  .card-back { background:var(--card-back); border:1px solid #2d4a3d; transform:rotateY(180deg); }
+  .card-label { font-size:11px; text-transform:uppercase; letter-spacing:1.5px; color:var(--accent); margin-bottom:12px; font-weight:600; }
+  .card-back .card-label { color:var(--green); }
+  .card-question { font-size:18px; line-height:1.5; font-weight:600; }
+  .card-answer { font-size:16px; line-height:1.6; font-weight:400; }
+  .card-book { margin-top:auto; padding-top:12px; font-size:11px; color:var(--text-dim); font-style:italic; }
+  .flip-hint { text-align:center; font-size:11px; color:var(--text-dim); margin-bottom:14px; }
+  .nav-row { display:flex; gap:8px; align-items:center; justify-content:center; flex-wrap:wrap; }
+  .nav-btn { padding:10px 18px; border-radius:10px; border:1px solid var(--border); background:var(--card-bg); color:var(--text); font-size:14px; cursor:pointer; transition:all 0.2s; font-weight:500; -webkit-tap-highlight-color:transparent; }
+  .nav-btn:hover { border-color:var(--accent); background:var(--card-front); }
+  .nav-btn:active { transform:scale(0.95); }
+  .nav-btn.know { background:#1a2e1a; border-color:#2d5a2d; color:var(--green); }
+  .nav-btn.review { background:#2e2a1a; border-color:#5a4a2d; color:var(--amber); }
+  .nav-btn.shuffle-btn { background:transparent; border-color:var(--accent); color:var(--accent); }
+  .action-btn { padding:7px 14px; border-radius:8px; border:1px solid var(--border); background:var(--card-bg); color:var(--text); font-size:12px; cursor:pointer; transition:all 0.2s; }
+  .action-btn:hover { border-color:var(--accent); }
+  .action-btn:active { transform:scale(0.95); }
+  .action-btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:100; align-items:center; justify-content:center; padding:20px; }
+  .modal-overlay.open { display:flex; }
+  .modal { background:var(--card-bg); border:1px solid var(--border); border-radius:16px; padding:28px; width:100%; max-width:520px; max-height:90vh; overflow-y:auto; }
+  .modal h2 { font-size:18px; margin-bottom:20px; }
+  .form-group { margin-bottom:16px; }
+  .form-group label { display:block; font-size:13px; color:var(--text-dim); margin-bottom:6px; }
+  .form-group input, .form-group textarea, .form-group select { width:100%; padding:10px 14px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:16px; font-family:inherit; -webkit-appearance:none; }
+  .form-group textarea { min-height:80px; resize:vertical; }
+  .modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:20px; }
+  .empty-state { text-align:center; padding:60px 20px; color:var(--text-dim); }
+  .empty-state p { font-size:16px; margin-bottom:8px; }
+  .keyboard-hints { text-align:center; padding:10px 16px 20px; font-size:11px; color:var(--text-dim); }
+  kbd { display:inline-block; padding:2px 6px; background:var(--card-front); border:1px solid var(--border); border-radius:4px; font-family:inherit; font-size:11px; margin:0 2px; }
+  @media (max-width:600px) { .keyboard-hints { display:none; } }
+  @media (max-width:400px) { .card-container{height:300px;} .card-question{font-size:16px;} .card-answer{font-size:14px;} .card-face{padding:20px;} .nav-btn{padding:9px 14px;font-size:13px;} }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1><span>&#128218;</span> Book Flashcards</h1>
+  <div class="header-actions">
+    <button class="action-btn" onclick="openModal('add')">+ Card</button>
+    <button class="action-btn" onclick="openModal('addBook')">+ Book</button>
+    <button class="action-btn" onclick="exportData()">Export</button>
+    <button class="action-btn" onclick="document.getElementById('importFile').click()">Import</button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+  </div>
+</div>
+<div class="stats-bar">
+  <div class="stat"><strong id="totalCount">0</strong> cards</div>
+  <div class="stat"><strong id="knownCount">0</strong> known</div>
+  <div class="stat"><strong id="reviewCount">0</strong> to review</div>
+  <div class="progress-bar-container"><div class="progress-bar" id="progressBar"></div></div>
+</div>
+<div class="filters" id="filterContainer"></div>
+<div class="card-area">
+  <div class="card-counter" id="cardCounter"></div>
+  <div class="card-container" id="cardContainer" onclick="flipCard()">
+    <div class="card-inner" id="cardInner">
+      <div class="card-face card-front">
+        <div class="card-label" id="frontLabel">Question</div>
+        <div class="card-question" id="frontText"></div>
+        <div class="card-book" id="frontBook"></div>
+      </div>
+      <div class="card-face card-back">
+        <div class="card-label">Action / Answer</div>
+        <div class="card-answer" id="backText"></div>
+        <div class="card-book" id="backBook"></div>
+      </div>
+    </div>
+  </div>
+  <div class="flip-hint">Tap card to flip &middot; Swipe left/right to navigate</div>
+  <div class="nav-row">
+    <button class="nav-btn" onclick="prevCard()">&#8592;</button>
+    <button class="nav-btn review" onclick="markReview()">&#10227; Review</button>
+    <button class="nav-btn know" onclick="markKnown()">&#10003; Know it</button>
+    <button class="nav-btn" onclick="nextCard()">&#8594;</button>
+    <button class="nav-btn shuffle-btn" onclick="shuffleDeck()">Shuffle</button>
+  </div>
+</div>
+<div class="empty-state" id="emptyState" style="display:none"><p>No cards match your filters.</p><p>Try a different filter or add new cards.</p></div>
+<div class="keyboard-hints"><kbd>&#8592;</kbd> Prev &nbsp; <kbd>&#8594;</kbd> Next &nbsp; <kbd>Space</kbd> Flip &nbsp; <kbd>K</kbd> Know it &nbsp; <kbd>R</kbd> Review &nbsp; <kbd>S</kbd> Shuffle</div>
+<div class="modal-overlay" id="addModal"><div class="modal"><h2>Add Flashcard</h2>
+  <div class="form-group"><label>Book</label><select id="addBook"></select></div>
+  <div class="form-group"><label>Front (question / prompt)</label><textarea id="addFront" placeholder="e.g. What should you do before every meal?"></textarea></div>
+  <div class="form-group"><label>Back (action / answer)</label><textarea id="addBack" placeholder="e.g. Invite someone."></textarea></div>
+  <div class="modal-actions"><button class="action-btn" onclick="closeModal()">Cancel</button><button class="action-btn primary" onclick="saveCard()">Add Card</button></div>
+</div></div>
+<div class="modal-overlay" id="addBookModal"><div class="modal"><h2>Add New Book</h2>
+  <div class="form-group"><label>Book title</label><input id="newBookTitle" placeholder="e.g. Deep Work"></div>
+  <div class="form-group"><label>Author</label><input id="newBookAuthor" placeholder="e.g. Cal Newport"></div>
+  <div class="modal-actions"><button class="action-btn" onclick="closeModal()">Cancel</button><button class="action-btn primary" onclick="saveBook()">Add Book</button></div>
+</div></div>
+<script>
+const BOOKS = [
+  { id:"never-eat-alone", title:"Never Eat Alone", author:"Keith Ferrazzi" },
+  { id:"negotiate-this", title:"Negotiate This!", author:"Herb Cohen" },
+  { id:"atomic-habits", title:"Atomic Habits", author:"James Clear" },
+  { id:"lions", title:"Lions Don\u2019t Need to Roar", author:"D.A. Benton" },
+  { id:"start-with-no", title:"Start with No", author:"Jim Camp" },
+  { id:"getting-to-yes", title:"Getting to Yes", author:"Fisher & Ury" },
+  { id:"win-friends", title:"How to Win Friends & Influence People", author:"Dale Carnegie" },
+  { id:"give-and-take", title:"Give and Take", author:"Adam Grant" },
+  { id:"25e-heure", title:"La 25e Heure", author:"Declair, Dinh & Dumont" },
+  { id:"mom-test", title:"The Mom Test", author:"Rob Fitzpatrick" },
+  { id:"poor-charlies", title:"Poor Charlie\u2019s Almanack", author:"Charlie Munger" }
+];
+const DEFAULT_CARDS = [
+  { bookId:"never-eat-alone", front:"Before reaching out to someone new, what homework should you do?", back:"Research them: Google their name, check LinkedIn, learn their hobbies, current challenges, and recent wins. Arrive with at least one specific thing you can help them with or ask about." },
+  { bookId:"never-eat-alone", front:"What is the \'Networking Action Plan\' and how do you use it?", back:"Write down your 3 most important goals. Under each, list the people who can help you get there, the skills you need, and specific actions. Review it monthly. Goals must be specific, measurable, and time-bound." },
+  { bookId:"never-eat-alone", front:"How should you handle every meal, coffee, and commute?", back:"Never eat alone. Every meal is a chance to deepen a relationship. Invite a colleague, a contact, or someone you want to know. Calendar one lunch and one coffee per week with someone outside your immediate circle." },
+  { bookId:"never-eat-alone", front:"What are the 4 types of people your network must include?", back:"1) People directly linked to your current goals. 2) Mentors who\'ve walked your path. 3) Super-connectors who know everyone. 4) Prominent figures in your industry. Write names for each category and reach out within the week." },
+  { bookId:"never-eat-alone", front:"What is \'pinging\' and how often should you do it?", back:"Pinging is staying in touch with contacts through short, low-effort gestures — forwarding an article, texting on a birthday, sharing a relevant link. Do it consistently even when you need nothing. Aim to ping your top 50 contacts at least once per month." },
+  { bookId:"never-eat-alone", front:"What should you do at a conference before you arrive?", back:"Get the attendee list in advance. Pick 3-5 people you want to meet. Research them. Email to set up a brief meeting or meal. During the event, skip sessions to have real conversations. Follow up within 24 hours with a personal note referencing something specific you discussed." },
+  { bookId:"never-eat-alone", front:"What is the key to turning a cold contact warm?", back:"Lead with generosity — offer something of value before asking for anything. Share an introduction, an article, a job lead, or a skill. Ferrazzi\'s rule: always give more than you take. The relationship must feel reciprocal from the start." },
+  { bookId:"never-eat-alone", front:"How should you follow up after meeting someone?", back:"Send a follow-up email within 24 hours. Reference something specific from your conversation. Offer something useful. Then add them to your \'pinging\' system for regular check-ins. The follow-up is where relationships are actually built." },
+  { bookId:"never-eat-alone", front:"What personal quality should you bring to networking conversations?", back:"Vulnerability. Share a real challenge or personal story — people connect with authenticity, not perfection. Ferrazzi calls it \'letting your guard down first\' to give the other person permission to do the same." },
+  { bookId:"never-eat-alone", front:"How do you become a \'super-connector\' yourself?", back:"Proactively introduce people in your network who would benefit from knowing each other. After every meeting, ask yourself: \'Who else should this person know?\' Make the introduction via email with context on why they should connect." },
+  { bookId:"negotiate-this", front:"What are the 3 variables that drive every negotiation?", back:"Power, time, and information. Before any negotiation, assess all three: Who has leverage? Who is under time pressure? Who has better information? Then work to shift each in your favor — gather more info, appear less time-pressed, and project confidence." },
+  { bookId:"negotiate-this", front:"What does \'care, but not T-H-A-T much\' mean in practice?", back:"Enter negotiations with genuine interest but emotional detachment from the outcome. The person who needs the deal less has the power. Practice: before any negotiation, identify your walkaway point and genuinely accept it. You\'ll negotiate from a calmer, stronger position." },
+  { bookId:"negotiate-this", front:"How should you use time as a weapon in negotiation?", back:"Be patient. The more time the other side invests, the harder it is for them to walk away (sunk cost). Don\'t rush. Let deadlines work against the other party. Most concessions happen at or after the deadline. Never reveal your own time pressure." },
+  { bookId:"negotiate-this", front:"What is the \'dumb is smart\' tactic?", back:"Play less informed than you are. Ask basic questions. Say \'I don’t understand, can you explain?\' This makes people lower their guard, explain their position fully, and often reveal information they wouldn\'t otherwise share. Cohen says: \'Inarticulate is frequently better than articulate.\'" },
+  { bookId:"negotiate-this", front:"How should you gather information before a negotiation?", back:"Start collecting information well before the formal negotiation begins — weeks or months in advance. Ask casual questions. People share freely when they don\'t think they\'re negotiating yet. By the time you sit down at the table, you should know more than they think you do." },
+  { bookId:"negotiate-this", front:"What phrase should you use to buy time and understand the other side?", back:"\'What would you do if you were in my situation?\' This disarms the other party, makes them empathize with your position, and often reveals their priorities and bottom line. Follow with: \'I see it differently\' to pivot back to your terms." },
+  { bookId:"negotiate-this", front:"When is saying \'No\' a powerful negotiation move?", back:"When used with poise, \'No\' creates productive doubt. The other side questions their position and often sweetens their offer. Don\'t be afraid of silence after saying no — let them fill the gap. Cohen treats \'No\' not as a wall but as a negotiating tool that opens new options." },
+  { bookId:"negotiate-this", front:"How should you make concessions?", back:"Always appear reluctant, even if the concession costs you little. Make concessions slowly and in small increments. Each time, frame it as significant: \'I normally couldn\'t do this, but...\' Trade minor concessions for things you actually want. Never give without getting." },
+  { bookId:"negotiate-this", front:"What is the role of \'niceness\' in negotiation?", back:"Being genuinely pleasant is a strategic advantage. People give better deals to people they like. Be warm, use humor, show interest in the person — then negotiate firmly. \'Power of Nice\': you can be both friendly and unyielding on your terms." },
+  { bookId:"atomic-habits", front:"How do you use \'habit stacking\' to build a new daily habit?", back:"Use the formula: \'After [CURRENT HABIT], I will [NEW HABIT].\' Example: \'After I pour my morning coffee, I will write in my journal for 2 minutes.\' Anchor new behaviors to existing routines — your brain already has strong neural pathways for those." },
+  { bookId:"atomic-habits", front:"What is the Two-Minute Rule and how do you start with it today?", back:"Downscale any new habit to a version that takes 2 minutes or less. \'Read 30 pages\' becomes \'read one page.\' \'Run 3 miles\' becomes \'put on running shoes.\' The point is to master showing up. You can optimize later; first you must make it automatic." },
+  { bookId:"atomic-habits", front:"What is the \'never miss twice\' rule?", back:"If you miss a habit once, that\'s human. If you miss it twice in a row, it becomes the start of a new (bad) habit. After any slip, your only job is to get back on track immediately. The first mistake is never the one that ruins you — it\'s the spiral of repeated misses." },
+  { bookId:"atomic-habits", front:"How do you make a bad habit harder to do?", back:"Increase friction. Make the cue invisible, the process unattractive, and the action difficult. Examples: delete social media apps from your phone (don\'t just log out). Put junk food in an opaque container on a high shelf. Unplug the TV after each use. Every step of friction reduces the chance you\'ll do it." },
+  { bookId:"atomic-habits", front:"How do you redesign your environment to support good habits?", back:"Make cues for good habits obvious and visible. Put the book on your pillow. Leave your gym clothes out the night before. Put a water bottle on your desk. Place the guitar in the middle of the living room. Your environment shapes behavior more than willpower does." },
+  { bookId:"atomic-habits", front:"How should you frame your identity to support habits?", back:"Don\'t say \'I\'m trying to quit smoking.\' Say \'I\'m not a smoker.\' Every action is a vote for the type of person you want to become. Shift from outcome-based goals (\'lose 10 lbs\') to identity-based ones (\'I\'m a person who never misses a workout\')." },
+  { bookId:"atomic-habits", front:"How do you use \'temptation bundling\' to stick to hard habits?", back:"Pair a habit you need to do with one you want to do. Example: \'I\'ll only listen to my favorite podcast while exercising.\' Or: \'I\'ll only watch Netflix while on the stationary bike.\' Link the behavior you resist with a reward you crave." },
+  { bookId:"atomic-habits", front:"What role does tracking play in habit formation?", back:"Use a habit tracker (a calendar, app, or journal). The visual chain of X\'s creates its own motivation — you don\'t want to break the streak. But keep tracking simple: if it takes more than a minute to log, you\'ll abandon it. Mark it immediately after completing the habit." },
+  { bookId:"atomic-habits", front:"How do you use an \'implementation intention\' to follow through?", back:"Be specific about when and where: \'I will [BEHAVIOR] at [TIME] in [LOCATION].\' Not \'I\'ll meditate more\' but \'I will meditate for 5 minutes at 7am in the kitchen chair.\' People who set implementation intentions are far more likely to follow through than those who just set goals." },
+  { bookId:"lions", front:"What should you do in the first 3 seconds when entering a room?", back:"Pause at the doorway. Stand tall, survey the room, and let people register your presence before moving. Don\'t rush in looking at your phone or shuffling to a seat. The \'empowering pause\' projects confidence and gives you a moment to choose where to go." },
+  { bookId:"lions", front:"How should you shake hands for a strong first impression?", back:"Make contact web-to-web (the skin between thumb and forefinger). Grip firmly but don’t crush. Hold for 2-3 seconds with eye contact and a slight smile. Step slightly forward as you shake. This signals confidence without aggression." },
+  { bookId:"lions", front:"What is the right listening posture?", back:"Lean slightly forward, keep your hands visible (not crossed), maintain steady eye contact with occasional breaks. Nod subtly. Don\'t fidget. The posture signals \'I\'m fully present and what you\'re saying matters\' — executives notice who genuinely listens." },
+  { bookId:"lions", front:"When should you deliberately NOT smile?", back:"Don\'t smile when delivering serious information, giving critical feedback, or when you need to project authority. A constant smile can signal nervousness or people-pleasing. Benton\'s rule: smile with purpose, not out of habit. Let your neutral face be calm and confident." },
+  { bookId:"lions", front:"How should you use your voice to project presence?", back:"Slow down. Lower your pitch slightly. Pause before key points rather than filling silence with \'um.\' Speak from your diaphragm, not your throat. End statements with your tone going down, not up — upward inflections make statements sound like questions and undermine authority." },
+  { bookId:"lions", front:"How do you break through \'official business mode\' to connect personally?", back:"Share a brief, relevant personal anecdote. Ask about something beyond work — a hobby, a recent trip. Ask for a small favor (Benton says this creates a bond more than doing a favor). Use humor, but only if it comes naturally and is never self-deprecating." },
+  { bookId:"lions", front:"What gestures should you avoid in professional settings?", back:"Avoid touching your face, playing with your hair, crossing your arms, pointing your finger, and fidgeting with objects. Each one signals insecurity, defensiveness, or aggression. Keep movements deliberate and minimal — \'lions don\'t need to roar\' because their calm presence speaks." },
+  { bookId:"lions", front:"What is Benton\'s rule about handling being fired or bad news?", back:"Maintain composure. Don\'t react emotionally in the moment. Thank the person for their directness. Ask clarifying questions calmly. Leave with dignity. Your reputation will outlast any single job — people remember how you handled adversity, not the adversity itself." },
+  { bookId:"start-with-no", front:"Why should you invite the other party to say \'No\'?", back:"Saying \'No\' makes people feel safe and in control. When they feel in control, their defenses drop and real conversation begins. Try: \'Would it be ridiculous to consider…?\' or \'Is this a bad idea?\' Giving them the easy out paradoxically makes agreement more likely." },
+  { bookId:"start-with-no", front:"What does \'neediness kills deals\' mean in practice?", back:"Never show that you need this deal. Desperation triggers the other side\'s predator instinct. Before any meeting, remind yourself: you don\'t need this deal, you want it. Have alternatives ready. If you feel needy, you\'ve already lost. Camp: \'Most things you think are needs are actually wants.\'" },
+  { bookId:"start-with-no", front:"What is \'blank slating\' and how do you practice it?", back:"Enter every conversation with zero assumptions and zero expectations. Silence the voice in your head that says \'I know where this is going.\' Instead, ask open questions and genuinely listen. The moment you assume, you stop discovering. Write \'BLANK SLATE\' on your notepad as a reminder." },
+  { bookId:"start-with-no", front:"What kind of questions should you ask in negotiations?", back:"Use interrogative-led questions that start with What, How, Why, When, Who. Never questions that can be answered with a single yes or no. \'What\'s the biggest challenge you\'re facing with this?\' drives the other side to think, share, and reveal their real priorities." },
+  { bookId:"start-with-no", front:"What is the \'Columbo Effect\' and how do you use it?", back:"Act slightly less polished or knowledgeable than you are — like TV\'s Columbo. Say \'I\'m a little confused, help me understand…\' This makes the other party feel superior and relaxed, so they explain more, lower their guard, and give you the information edge. Never let ego get in the way of leverage." },
+  { bookId:"start-with-no", front:"How should you handle the urge to \'close the deal\' quickly?", back:"Resist it. Camp says the eagerness to close is your biggest vulnerability. Rushed deals favor the other side. Slow down. Ask more questions. Let the process unfold. A good deal reached slowly beats a bad deal reached fast." },
+  { bookId:"start-with-no", front:"How should you set your mission and purpose before negotiating?", back:"Define your mission in terms of what you can control — your behavior, your preparation, your questions — not in terms of the other party\'s actions. \'My mission is to understand their real problem\' not \'My mission is to get them to sign.\' You can control discovery; you can\'t control their decision." },
+  { bookId:"start-with-no", front:"What is Camp\'s stance on compromise?", back:"Compromise often leaves both sides unhappy. Instead, keep digging for a solution that fully satisfies both parties\' real interests. The willingness to say \'no\' and walk away is what creates space for creative solutions rather than splitting the difference." },
+  { bookId:"getting-to-yes", front:"What does \'separate the people from the problem\' look like in action?", back:"Before responding to a tense demand, acknowledge the other person\'s emotions first: \'I can see this matters a lot to you.\' Then reframe the discussion around the problem, not the personalities. Never say \'you always\' or \'you never.\' Attack the issue, stand beside the person." },
+  { bookId:"getting-to-yes", front:"How do you uncover interests behind a position?", back:"Ask \'Why?\' and \'Why not?\' When someone says \'I need $80k,\' ask \'What makes that number important to you?\' Often the real interest is security, recognition, or flexibility — not the exact figure. You can often satisfy the interest with creative options the position would never reveal." },
+  { bookId:"getting-to-yes", front:"What is your BATNA and how do you use it?", back:"Your Best Alternative To a Negotiated Agreement is your walkaway power. Before negotiating, clearly define what you’ll do if this deal falls through. Strengthen your BATNA by developing real alternatives. Never accept a deal worse than your BATNA. Knowing it gives you confidence and a floor." },
+  { bookId:"getting-to-yes", front:"How do you brainstorm options for mutual gain?", back:"Separate inventing from deciding. Hold a brainstorming session (even mentally) where no idea is evaluated yet. Ask: \'What if we…?\' and \'Is there a way both of us could…?\' Look for shared interests and different valuations — if they value X cheaply and you value it highly, there\'s a trade." },
+  { bookId:"getting-to-yes", front:"What are \'objective criteria\' and why insist on them?", back:"Base decisions on standards independent of either party\'s will: market value, precedent, expert opinion, law, industry benchmarks. Instead of arguing \'I want more,\' say \'What\'s the standard rate for this?\' Framing around criteria protects you from pressure and makes agreements feel fair." },
+  { bookId:"getting-to-yes", front:"How do you handle a negotiator who won\'t play fair?", back:"Name the tactic without attacking the person. \'It seems like you\'re using a good-cop/bad-cop approach — can we skip that and talk about the real issues?\' Then redirect to interests, options, and criteria. If they keep at it, fall back to your BATNA. Don\'t match dirty tricks with dirty tricks." },
+  { bookId:"getting-to-yes", front:"What should you do when the other party is more powerful?", back:"Focus on strengthening your BATNA — that\'s the great equalizer. Also: prepare extensively (information is power), separate the issue from the relationship, and propose objective standards. Power imbalance matters less when both parties are negotiating based on fair criteria rather than leverage." },
+  { bookId:"getting-to-yes", front:"How do you handle strong emotions during a negotiation?", back:"Acknowledge them explicitly — yours and theirs. Say: \'I\'m feeling frustrated, and I sense you might be too. Can we step back?\' Allow people to let off steam without reacting. Listen without rebutting. Emotions addressed become manageable; emotions ignored become explosive." },
+  { bookId:"win-friends", front:"What is the fastest way to kill someone\'s willingness to cooperate?", back:"Criticize them. Carnegie says criticism is futile: it puts people on the defensive, wounds their pride, and generates resentment — never behavior change. Instead, try to understand why they did what they did. Replace criticism with curiosity: \'Help me understand your thinking on this.\'" },
+  { bookId:"win-friends", front:"How do you give appreciation that actually lands?", back:"Be specific and sincere. Not \'good job\' but \'The way you restructured that proposal made the pricing section really clear — the client commented on it.\' Carnegie distinguishes appreciation from flattery: appreciation is specific and earned, flattery is generic and manipulative." },
+  { bookId:"win-friends", front:"What is Carnegie\'s most powerful conversation technique?", back:"Be a good listener. Encourage the other person to talk about themselves. Ask follow-up questions. People will consider you a great conversationalist when you barely spoke. At your next meeting, try talking for less than 30% of the time." },
+  { bookId:"win-friends", front:"Why is someone\'s name the most important word you can say?", back:"A person\'s name is the sweetest sound to them. Use it naturally in conversation — in greetings, in questions, in farewells. When you meet someone, repeat their name immediately: \'Nice to meet you, Sarah.\' Use it once or twice more during the conversation. Write it down right after." },
+  { bookId:"win-friends", front:"How do you influence someone without triggering defensiveness?", back:"Talk about what they want and show them how to get it. Never start with your agenda. Frame your request in terms of their interests. Instead of \'I need this report by Friday,\' try \'Getting this report out by Friday would make your team\'s work visible to the VP — want to aim for that?\'" },
+  { bookId:"win-friends", front:"What should you do instead of arguing?", back:"Avoid arguments entirely — you can never truly \'win\' one. If you lose, you lose. If you win, the other person resents you. Instead: listen fully, look for areas of agreement, promise to think about their points. Then follow up. You\'ll change more minds through diplomacy than debate." },
+  { bookId:"win-friends", front:"How do you get someone to change their mind?", back:"Let them feel the idea is theirs. Ask questions that lead them toward your conclusion. Share the seed, then let them water it. Carnegie: \'People have more faith in ideas they discover themselves.\' In meetings, plant your idea as a question: \'What if we tried…?\'" },
+  { bookId:"win-friends", front:"What should be your first move when you\'re wrong?", back:"Admit it quickly, emphatically, and specifically. \'I was wrong about the deadline — I should have flagged the delay last week.\' People disarm completely when you self-correct before they can criticize you. It turns potential conflict into mutual respect." },
+  { bookId:"win-friends", front:"How do you motivate someone to take action?", back:"Give them a fine reputation to live up to. Instead of \'You need to improve your attention to detail,\' say \'You\'ve always been one of the most careful people on the team — I know this last report doesn\'t reflect your usual standard.\' People rise to the image you paint of them." },
+  { bookId:"win-friends", front:"How do you make a strong first impression?", back:"Smile genuinely. Show real interest in the other person by asking about them, not talking about yourself. Use their name. Listen more than you speak. Carnegie says you can make more friends in two months by becoming interested in others than in two years of trying to get them interested in you." },
+  { bookId:"give-and-take", front:"What separates successful givers from doormats?", back:"Successful givers are \'otherish\' — they help generously but also protect their own goals. They set boundaries: if someone is a taker, they shift to matcher mode (only give if the person reciprocates or pays it forward). Giving without boundaries leads to burnout, not success." },
+  { bookId:"give-and-take", front:"How should you choose your giving specialty?", back:"Ask: \'What type of giving energizes me and matches my skills?\' For some it\'s making introductions, for others it\'s mentoring, sharing credit, or giving feedback. Specialize in one or two forms of giving rather than trying to help everyone with everything. Focused giving is sustainable and high-impact." },
+  { bookId:"give-and-take", front:"What is \'powerless communication\' and when should you use it?", back:"Instead of asserting dominance, ask questions, seek advice, and express tentative ideas: \'I wonder if…\' or \'What do you think about…?\' This style builds trust and influence because people feel included and valued. Use it especially when you need buy-in or are working with peers." },
+  { bookId:"give-and-take", front:"How do you spot a taker before they drain you?", back:"Watch for \'kissing up, kicking down\' — takers are charming to superiors but dismissive to those below them. Also look for: claiming credit disproportionately, name-dropping without substance, and conversations that are always about them. Once identified, switch to matcher mode with that person." },
+  { bookId:"give-and-take", front:"How can giving actually accelerate your career?", back:"Giving builds a broad network of goodwill. When givers succeed, people root for them and actively help. Grant found that the top performers in engineering, sales, and medicine are disproportionately givers. The key: your reputation as a giver compounds over time — people refer you, vouch for you, share opportunities." },
+  { bookId:"give-and-take", front:"What is the \'5-minute favor\' rule?", back:"If you can help someone in 5 minutes or less — an introduction, a piece of feedback, a resource — do it immediately with no strings attached. These micro-gifts cost you almost nothing but create disproportionate goodwill and build a reputation that pays dividends over years." },
+  { bookId:"give-and-take", front:"How should you ask for help as a giver?", back:"Don\'t be afraid to ask — it\'s not a sign of weakness. Frame requests specifically: \'Could you introduce me to X?\' rather than \'Can you help me?\' Specificity makes it easy for people to say yes. Givers who never ask for help deny others the chance to reciprocate and burn out." },
+  { bookId:"give-and-take", front:"How do you share credit to amplify your team?", back:"Publicly attribute success to specific contributions: \'Maria\'s insight on pricing changed the whole proposal.\' This builds loyalty, motivates the team, and paradoxically raises your status — leaders who share credit are seen as more competent and confident, not less." },
+  { bookId:"give-and-take", front:"What is \'chunking\' vs. \'sprinkling\' when it comes to helping others?", back:"Batch your giving into dedicated blocks (\'chunking\') rather than scattering it throughout the day (\'sprinkling\'). For example, set aside Tuesday afternoons for mentoring and introductions. Chunking protects your focus time and makes helping feel energizing rather than draining." },
+  { bookId:"25e-heure", front:"What is the productivity equation from La 25e Heure?", back:"Work accomplished = Time spent × Intensity of focus × Speed of execution. To gain an extra hour each day, improve any of the three: organize (allocate time), concentrate (eliminate distractions), or accelerate (work faster with better tools and techniques)." },
+  { bookId:"25e-heure", front:"What is the \'rule of three emails\'?", back:"If you\'ve exchanged more than 3 emails on the same topic, stop writing and pick up the phone or walk over. Async communication breaks down for complex or nuanced topics — you\'ll resolve in 5 minutes what would take 10 more emails." },
+  { bookId:"25e-heure", front:"What is the \'first second\' technique for beating procrastination?", back:"Don\'t wait to feel motivated — start the task within the first second of thinking about it. Open the document. Write the first sentence. Lace up the shoes. Action creates motivation, not the other way around. Hesitation is the enemy; momentum is the cure." },
+  { bookId:"25e-heure", front:"How should you set deadlines to maximize output?", back:"Set \'unrealistic\' deadlines on purpose. Parkinson\'s Law says work expands to fill the time available. By giving yourself half the time you think you need, you force yourself to focus on the 20% that matters (Pareto\'s 80/20). A finished imperfect draft beats a perfect plan you never started." },
+  { bookId:"25e-heure", front:"What is the enemy of productivity according to the authors?", back:"Synchronous communication — calls, meetings, shoulder-taps. Reserve synchronous communication for only two cases: 1) situations too complex for email, or 2) after the \'three emails rule\' has been triggered. Everything else should be async to protect deep focus blocks." },
+  { bookId:"25e-heure", front:"How should you structure your daily to-do list?", back:"Limit it to 3 key tasks per day — your \'MIT\' (Most Important Tasks). Break each into sub-tasks small enough to complete in one sitting. Write them the night before so you start the day with clarity. Cross them off as you go — the visual progress fuels momentum." },
+  { bookId:"25e-heure", front:"How do you cut email processing time in half?", back:"Batch email into 2-3 fixed windows per day (e.g. 9am, 1pm, 5pm). Turn off notifications outside those windows. Process each email only once: reply, delegate, schedule, or archive. Never use your inbox as a to-do list — move action items to your task manager immediately." },
+  { bookId:"25e-heure", front:"How do you handle tasks you dread or keep postponing?", back:"Apply the \'first second\' rule combined with sub-tasking: break the dreaded task into its smallest possible first step, then do just that step immediately. \'Write the tax report\' becomes \'open the spreadsheet.\' Once you start, the psychological resistance collapses." },
+  { bookId:"25e-heure", front:"What is the authors\' stance on multitasking?", back:"Multitasking is a myth — it\'s actually rapid task-switching, and each switch costs 15-25 minutes of refocusing time. Protect single-task focus blocks of 60-90 minutes. Close all tabs, put your phone in another room, and work on one thing until the block ends." },
+  { bookId:"mom-test", front:"Why is \'Would you use this product?\' a terrible question?", back:"It\'s hypothetical — people say yes to be nice. Instead ask about the past: \'Tell me about the last time you had this problem. What did you do?\' Past behavior is the only reliable predictor of future behavior. If they haven\'t tried to solve the problem, it probably doesn\'t matter enough." },
+  { bookId:"mom-test", front:"What are the 3 types of bad data you must watch for in interviews?", back:"1) Compliments (\'That\'s a great idea!\'). 2) Hypothetical fluff (\'I would definitely use that\'). 3) Wishlists (\'It would be cool if it could…\'). None of these tell you what people actually do. Redirect every time: \'When did you last face this? What did you try?\'" },
+  { bookId:"mom-test", front:"How do you tell if a customer problem is real vs. imaginary?", back:"Ask: \'When did this last happen?\' and \'What did you do about it?\' If they can\'t recall a specific instance or took no action, the problem isn\'t painful enough to pay for. Real problems leave a trail of attempted solutions, workarounds, and frustration." },
+  { bookId:"mom-test", front:"What should you never reveal during a customer conversation?", back:"Your idea. The moment you pitch, the conversation shifts from honest feedback to polite encouragement. Talk about their life, their problems, their workflow. Let them tell you what matters before you ever mention what you\'re building." },
+  { bookId:"mom-test", front:"How do you measure whether a meeting was successful?", back:"By commitment, not compliments. Did they agree to a follow-up meeting? Did they introduce you to a colleague? Did they put money down or sign a letter of intent? Words are free. Only actions — time, reputation, or money on the line — signal real interest." },
+  { bookId:"mom-test", front:"What 3 questions should your team agree on before every interview?", back:"Decide in advance: 1) What are the 3 most important things we need to learn? 2) What commitment or next step do we want from them? 3) What can we learn from desk research instead of wasting interview time? Go in with a plan, not a blank slate." },
+  { bookId:"mom-test", front:"How should you structure the interview team?", back:"Two people: one leads the conversation and asks questions, the other takes detailed notes. The leader stays fully present and makes eye contact. The note-taker captures exact quotes, not summaries. Debrief immediately after — insights decay within hours." },
+  { bookId:"mom-test", front:"How do you ask about willingness to pay without being awkward?", back:"Don\'t ask \'How much would you pay?\' Ask: \'How are you solving this today?\' then \'What does that cost you in time and money?\' This reveals their current spend and pain tolerance — a far better pricing signal than a hypothetical number." },
+  { bookId:"mom-test", front:"What is the \'advancement\' test for a customer conversation?", back:"After every meeting, ask: did we advance the relationship? Advancement means they gave something of value — time for another meeting, an intro to a decision-maker, a pilot commitment, access to data. If all you got was \'sounds interesting,\' you learned nothing." },
+  { bookId:"poor-charlies", front:"What does \'Invert, always invert\' mean in daily decisions?", back:"Instead of asking \'How do I succeed?\', ask \'What would guarantee failure?\' then avoid those things. Want a great marriage? List what would destroy one — neglect, dishonesty, contempt — and don\'t do those. Munger says avoiding stupidity is easier and more reliable than seeking brilliance." },
+  { bookId:"poor-charlies", front:"What is the \'Lollapalooza Effect\' and why should you watch for it?", back:"When multiple psychological biases align in the same direction, they create an extreme, outsized outcome. Example: social proof + authority + incentive all pushing you toward the same bad decision. When you feel an overwhelming urge to act, pause and count how many biases might be stacking up." },
+  { bookId:"poor-charlies", front:"How should you use Munger\'s checklist of 25 cognitive biases?", back:"Before any major decision, run through the list: Am I being influenced by incentives? Social proof? Authority? Envy? Loss aversion? Consistency bias? Identify the 2-3 biases most likely at play, then consciously construct counter-arguments. The checklist turns invisible biases into visible ones." },
+  { bookId:"poor-charlies", front:"What is \'incentive-caused bias\' and how do you guard against it?", back:"People act in their own financial or social interest, often unconsciously. When someone gives you advice, always ask: \'What do they gain if I follow this advice?\' Your real estate agent, your financial advisor, even your surgeon — all have incentives that may not align with yours. Seek disinterested second opinions." },
+  { bookId:"poor-charlies", front:"What is Munger\'s approach to building a \'latticework of mental models\'?", back:"Read widely across disciplines — psychology, physics, biology, economics, history. From each, extract one or two core models (e.g. compound interest, feedback loops, natural selection). When facing a problem, rotate through multiple models rather than relying on the one you know best. \'To a man with a hammer, everything looks like a nail.\'" },
+  { bookId:"poor-charlies", front:"What is \'consistency and commitment bias\' and how does it trap you?", back:"Once you\'ve publicly committed to a position, your brain fights to stay consistent with it — even when evidence changes. Munger\'s fix: regularly ask \'What evidence would change my mind?\' and \'Am I defending this idea because it\'s right, or because it\'s mine?\' Kill your darlings before they kill your judgment." },
+  { bookId:"poor-charlies", front:"What is Munger\'s rule on making decisions under pressure?", back:"Don\'t. Most bad decisions are made too fast. Munger says: \'You don\'t have to have an opinion on everything, and you don\'t have to decide today.\' When pressured, say \'I\'ll need to think about that.\' The people rushing you usually benefit from your haste." },
+  { bookId:"poor-charlies", front:"How does Munger apply the \'margin of safety\' concept beyond investing?", back:"Build buffers everywhere: leave 30 minutes early, save more than you think you need, hire people better than the minimum requirement, promise less than you can deliver. Things go wrong. The margin of safety is the gap between your plan and reality\'s chaos." },
+  { bookId:"poor-charlies", front:"What is \'social proof\' bias and when is it most dangerous?", back:"We copy what others do, especially under uncertainty. It\'s most dangerous when everyone around you is doing the same thing — housing bubbles, herd investing, groupthink in meetings. Munger\'s antidote: \'Whenever you find yourself on the side of the majority, it\'s time to pause and reflect.\'" },
+  { bookId:"poor-charlies", front:"What does Munger mean by \'sit on your ass\' investing — and how does it apply to life?", back:"The big money and the best outcomes come from patience, not constant action. In life: don\'t switch jobs, strategies, or relationships at the first sign of difficulty. Find something that works, then let compounding do the heavy lifting. Munger: \'The first rule of compounding: never interrupt it unnecessarily.\'" }
+];
+
+let books = JSON.parse(JSON.stringify(BOOKS));
+let cards = DEFAULT_CARDS.map((c, i) => ({ ...c, id: i, status: 'new' }));
+let filteredCards = [];
+let currentIndex = 0;
+let activeBookFilter = null;
+let activeStatusFilter = null;
+let nextId = cards.length;
+
+function loadState() {
+  try { const s = localStorage.getItem('biz-flashcards-v2'); if (s) { const d = JSON.parse(s); if (d.cards) cards = d.cards; if (d.books) books = d.books; if (d.nextId) nextId = d.nextId; } } catch(e) {}
+}
+function saveState() {
+  try { localStorage.setItem('biz-flashcards-v2', JSON.stringify({ cards, books, nextId })); } catch(e) {}
+}
+function applyFilters() {
+  filteredCards = cards.filter(c => {
+    if (activeBookFilter && c.bookId !== activeBookFilter) return false;
+    if (activeStatusFilter === 'known' && c.status !== 'known') return false;
+    if (activeStatusFilter === 'review' && c.status !== 'review') return false;
+    if (activeStatusFilter === 'new' && c.status !== 'new') return false;
+    return true;
+  });
+  if (currentIndex >= filteredCards.length) currentIndex = Math.max(0, filteredCards.length - 1);
+  renderCard(); updateStats();
+}
+function renderFilters() {
+  const ct = document.getElementById('filterContainer');
+  let h = '<button class="filter-btn ' + (!activeBookFilter ? 'active' : '') + '" onclick="setBookFilter(null)">All Books</button>';
+  books.forEach(b => { h += '<button class="filter-btn ' + (activeBookFilter === b.id ? 'active' : '') + '" onclick="setBookFilter(\'' + b.id + '\')">' + b.title + '</button>'; });
+  h += '<span style="width:1px;height:20px;background:var(--border);margin:0 4px"></span>';
+  ['All','New','Review','Known'].forEach((l,i) => { const v = [null,'new','review','known'][i]; h += '<button class="filter-btn status-filter ' + (activeStatusFilter === v ? 'active' : '') + '" onclick="setStatusFilter(' + (v ? "\'" + v + "\'" : 'null') + ')">' + l + '</button>'; });
+  ct.innerHTML = h;
+}
+function renderCard() {
+  const ca = document.querySelector('.card-area'), em = document.getElementById('emptyState'), inner = document.getElementById('cardInner');
+  if (filteredCards.length === 0) { ca.style.display = 'none'; em.style.display = 'block'; return; }
+  ca.style.display = 'flex'; em.style.display = 'none'; inner.classList.remove('flipped');
+  const card = filteredCards[currentIndex], book = books.find(b => b.id === card.bookId);
+  const bl = book ? book.title + ' \u2014 ' + book.author : '';
+  const sb = card.status === 'known' ? ' \u2713' : card.status === 'review' ? ' \u27F3' : '';
+  document.getElementById('frontLabel').textContent = 'Question' + sb;
+  document.getElementById('frontText').textContent = card.front;
+  document.getElementById('frontBook').textContent = bl;
+  document.getElementById('backText').textContent = card.back;
+  document.getElementById('backBook').textContent = bl;
+  document.getElementById('cardCounter').textContent = (currentIndex + 1) + ' / ' + filteredCards.length;
+}
+function updateStats() {
+  const t = filteredCards.length, k = filteredCards.filter(c => c.status === 'known').length, r = filteredCards.filter(c => c.status === 'review').length;
+  document.getElementById('totalCount').textContent = t;
+  document.getElementById('knownCount').textContent = k;
+  document.getElementById('reviewCount').textContent = r;
+  document.getElementById('progressBar').style.width = t ? (k/t*100).toFixed(1)+'%' : '0%';
+}
+function flipCard() { document.getElementById('cardInner').classList.toggle('flipped'); }
+function nextCard() { if (!filteredCards.length) return; currentIndex = (currentIndex + 1) % filteredCards.length; renderCard(); }
+function prevCard() { if (!filteredCards.length) return; currentIndex = (currentIndex - 1 + filteredCards.length) % filteredCards.length; renderCard(); }
+function markKnown() { if (!filteredCards.length) return; const c = filteredCards[currentIndex]; c.status = c.status === 'known' ? 'new' : 'known'; saveState(); applyFilters(); }
+function markReview() { if (!filteredCards.length) return; const c = filteredCards[currentIndex]; c.status = c.status === 'review' ? 'new' : 'review'; saveState(); applyFilters(); }
+function shuffleDeck() { for (let i = filteredCards.length - 1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [filteredCards[i],filteredCards[j]]=[filteredCards[j],filteredCards[i]]; } currentIndex = 0; renderCard(); }
+function setBookFilter(id) { activeBookFilter = id; currentIndex = 0; renderFilters(); applyFilters(); }
+function setStatusFilter(s) { activeStatusFilter = s; currentIndex = 0; renderFilters(); applyFilters(); }
+function openModal(type) {
+  if (type === 'add') { const sel = document.getElementById('addBook'); sel.innerHTML = books.map(b => '<option value="'+b.id+'">'+b.title+'</option>').join(''); document.getElementById('addFront').value=''; document.getElementById('addBack').value=''; document.getElementById('addModal').classList.add('open'); }
+  else { document.getElementById('newBookTitle').value=''; document.getElementById('newBookAuthor').value=''; document.getElementById('addBookModal').classList.add('open'); }
+}
+function closeModal() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('open')); }
+function saveCard() {
+  const bookId = document.getElementById('addBook').value, front = document.getElementById('addFront').value.trim(), back = document.getElementById('addBack').value.trim();
+  if (!front || !back) return alert('Fill in both sides.');
+  cards.push({ id: nextId++, bookId, front, back, status: 'new' }); saveState(); closeModal(); applyFilters(); renderFilters();
+}
+function saveBook() {
+  const title = document.getElementById('newBookTitle').value.trim(), author = document.getElementById('newBookAuthor').value.trim();
+  if (!title) return alert('Enter a book title.');
+  const id = title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  if (books.find(b => b.id === id)) return alert('Book already exists.');
+  books.push({ id, title, author }); saveState(); closeModal(); renderFilters();
+}
+function exportData() {
+  const blob = new Blob([JSON.stringify({ books, cards, nextId }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'flashcards-backup.json'; a.click();
+}
+function importData(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) { try { const d = JSON.parse(ev.target.result); if (d.cards) cards=d.cards; if (d.books) books=d.books; if (d.nextId) nextId=d.nextId; saveState(); renderFilters(); applyFilters(); alert('Imported!'); } catch(err) { alert('Invalid file.'); } };
+  reader.readAsText(file); e.target.value = '';
+}
+// Touch swipe
+let touchStartX = 0, touchStartY = 0;
+const cardEl = document.getElementById('cardContainer');
+cardEl.addEventListener('touchstart', function(e) { touchStartX = e.changedTouches[0].screenX; touchStartY = e.changedTouches[0].screenY; }, { passive: true });
+cardEl.addEventListener('touchend', function(e) { const dx = e.changedTouches[0].screenX - touchStartX, dy = e.changedTouches[0].screenY - touchStartY; if (Math.abs(dx) < 50 || Math.abs(dy) > Math.abs(dx)) return; if (dx < 0) nextCard(); else prevCard(); }, { passive: true });
+// Keyboard
+document.addEventListener('keydown', function(e) {
+  if (document.querySelector('.modal-overlay.open')) { if (e.key === 'Escape') closeModal(); return; }
+  if (e.key === 'ArrowRight') nextCard(); else if (e.key === 'ArrowLeft') prevCard();
+  else if (e.key === ' ') { e.preventDefault(); flipCard(); }
+  else if (e.key === 'k' || e.key === 'K') markKnown();
+  else if (e.key === 'r' || e.key === 'R') markReview();
+  else if (e.key === 's' || e.key === 'S') shuffleDeck();
+});
+// Service Worker
+if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(function(){}); }
+// Init
+loadState(); renderFilters(); applyFilters();
+</script>
+</body>
+</html>
